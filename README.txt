@@ -13,7 +13,7 @@ The quality_summary.tsv from checkV and the kraken_output.txt files in `/Users/c
 
 The consolidated files required to replicate the figures are in the "Paper figures" folder. R is required to create each figure. 
 
-If there's any question, please refer to the original repository (), or contact the first author:
+If there's any question, please refer to the original repository (https://github.com/criera90/Forensic-applications-of-viral-DNA-transferred-by-touch-from-human-skin-surfaces), or contact the first author:
 
 Carlos Riera-Ruiz
 criera-ruiz@huskers.unl.edu
