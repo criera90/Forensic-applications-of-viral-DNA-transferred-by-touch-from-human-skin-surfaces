@@ -1,0 +1,296 @@
+---
+title: "Heatmap"
+author: "Carlos Riera-Ruiz"
+date: "2023-10-02"
+output:
+  pdf_document: default
+  html_document: default
+  
+---
+
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = '/Users/crieraruiz/Library/CloudStorage/OneDrive-UniversityofNebraska-Lincoln/01_SF_lab/Projects/00_IN_PROGRESS/NIJ2_data_analysis/ordinations2/objects/08_ordinations_dnase_transferred')
+```
+
+```{r create phyloseq object with original data}
+library(phyloseq)
+library(microbiome)
+library(microViz)
+otu_original<-"TO_otu_dnase_transferred_table.csv"
+meta_original<-"TO_meta_dnase_transferred_table.csv"
+tax_original<-"TO_tax_dnase_transferred_table.csv"
+
+# import otu table
+#otu table
+otu<-read.table(otu_original, header=T, row.names=1, check.names=F, sep=",")
+OTU = otu_table(as.matrix(otu), taxa_are_rows = TRUE)
+OTU_phy = phyloseq(OTU)
+#meta data
+meta<-read.table(meta_original, header=T, row.names=1, check.names=F, sep=",")
+meta$Person<-paste0("P_",meta$Person)
+meta_phy = sample_data(data.frame(meta, row.names=sample_names(OTU_phy), stringsAsFactors=FALSE))
+meta_phy$Type<-as.factor(meta_phy$Type)
+meta_phy$Person<-as.factor(meta_phy$Person)
+meta_phy$Day<-as.factor(meta_phy$Day)
+meta_phy$Object<-as.factor(meta_phy$Object)
+meta_phy$Object2<-as.factor(meta_phy$Object2)
+meta_phy$Group1<-as.factor(meta_phy$Group1)
+#tax table
+tax<-read.table(tax_original, header=T, row.names=1, check.names=F, sep=",")
+
+# create phyloseq
+OTU = otu_table(as.matrix(otu), taxa_are_rows = TRUE)
+OTU_phy = phyloseq(OTU)
+meta_phy = sample_data(data.frame(meta, row.names=sample_names(OTU_phy), stringsAsFactors=FALSE))
+tax_phy=tax_table(as.matrix(tax))
+ps = merge_phyloseq(OTU_phy[,colSums(OTU_phy)>0], meta_phy, tax_phy)
+ps
+
+```
+```{r heatmap p1}
+
+```
+
+
+
+```{r Families that are also found by Graham et al 2021}
+intersect_graham_families<-intersect(c(ps@tax_table[,7]),c("Baculoviridae", "Genomoviridae", "Herelleviridae", "Myoviridae", "Papillomaviridae", "Podoviridae", "Siphoviridae", "Caudovirales", "Unclassified Homo sapiens like virus"))
+intersect_graham_families
+
+```
+
+```{r make phyloseq object with contigs present in hands and transferred to objects}
+library(ComplexHeatmap)
+#install.packages("circlize")
+#library(circlize)
+# take only samples pertaining to hands or objects. Not pooled samples
+samples_to_keep<-c("Hands","Ceramic","Plastic","Knife","Phone","Glass") # list of sample names correspoinding to hands or objects
+# make ps object with all objects but keeping only hands from day 0
+ps_only_hands0<-subset_samples( ps, !( Object %in% c("Hands") & Day %in% c(1,2) ) )
+# keep only objects and hands (remove pooled samples)
+ps_only_objects<-subset_samples(ps_only_hands0, Object %in% samples_to_keep)
+
+# get a list of contigs present in hands day 0
+ps_hands <- ps_filter(ps_only_objects, Object3 %in% c("Hands_0"))
+#ps_hands <- ps_filter(ps_only_objects, Object3 %in% c("Hands_0"))
+ps_hands_contigs<-rownames(otu_table(ps_hands))
+ps_hands_contigs
+ps2 <- prune_taxa(ps_hands_contigs,ps_only_objects)  # phyloseq objects with contigs present in hands only and shared with objects
+```
+
+```{r overall heatmap}
+pX_otu<-data.frame(ps2@otu_table)
+hands_column<-grep("Hands",colnames(pX_otu), value=T)
+ps_transferred_no_hands<-subset_samples(ps2, Object2 != "Hands")
+pX_otu_sorted<-pX_otu[order(-pX_otu[[hands_column]]),]
+
+```
+
+```{r make phyloseq object with contigs present in hands and transferred to objects}
+transferred_contigs<-c()
+list_transferred_contigs<-list()
+#for (person in seq(1:10)){
+for (person in c(1,2,3,6,8,9,10)){
+  ps_pX<-subset_samples(ps2,Person==paste0("P_P_",person))
+  pX_otu<-data.frame(ps_pX@otu_table)
+  hands_column<-grep("Hands",colnames(pX_otu), value=T)
+  #pX_otu_sorted<-pX_otu[order(-pX_otu$TO_3_0_Hands),]
+  pX_otu_sorted<-pX_otu[order(-pX_otu[[hands_column]]),] # instead of -pX_otu$TO_1_0_Hands
+  contigs_in_hands<-rownames(pX_otu_sorted[pX_otu_sorted[[hands_column]]>0,])
+  pX_otu_sorted_no_hands<-pX_otu_sorted[!(names(pX_otu_sorted) %in% c(hands_column))]
+  pX_otu_sorted_no_hands_but_shared_with_hands<-pX_otu_sorted_no_hands[rownames(pX_otu_sorted_no_hands) %in% contigs_in_hands,]
+  contigs_transferred<-rownames(pX_otu_sorted_no_hands_but_shared_with_hands[rowSums(pX_otu_sorted_no_hands_but_shared_with_hands)>0,])
+  transferred_contigs<-c(transferred_contigs,contigs_transferred)
+  list_transferred_contigs[[paste0("P_",person)]]<-contigs_transferred
+  #contigs_to_keep<-names(sort(taxa_sums(ps_pX),TRUE)[sort(taxa_sums(ps_pX),TRUE) > 0.01])[1:10]
+  #contigs_to_keep<-names(sort(taxa_sums(ps_pX),TRUE)[sort(taxa_sums(ps_pX),TRUE) > 0.01])
+  if (!identical(contigs_transferred, character(0))) {
+    pX_otu_transferred<-prune_taxa(contigs_transferred,ps_pX)
+    o<-data.frame(pX_otu_transferred@otu_table)
+  } else {
+    o<-data.frame(pX_otu_sorted[pX_otu_sorted[[hands_column]]>0,])
+  }
+  o_ordered<-o[order(-o[[hands_column]]),]
+  o_ordered_no_zeroes<-o_ordered[o_ordered[[hands_column]]>0,]
+  o_ordered_no_zeroes_ord_cols<-as.matrix(o_ordered_no_zeroes[,order(names(o_ordered_no_zeroes))])
+  print(o_ordered_no_zeroes_ord_cols)
+  max_tpm<-max(o_ordered_no_zeroes_ord_cols)
+  plot_col<-circlize::colorRamp2(c(0, 
+                                   quantile(o_ordered_no_zeroes_ord_cols[o_ordered_no_zeroes_ord_cols > 0], probs=0.5),
+                                   quantile(o_ordered_no_zeroes_ord_cols[o_ordered_no_zeroes_ord_cols > 0], probs=0.1),
+                                   quantile(o_ordered_no_zeroes_ord_cols[o_ordered_no_zeroes_ord_cols > 0], probs=0.3),
+                                   quantile(o_ordered_no_zeroes_ord_cols[o_ordered_no_zeroes_ord_cols > 0], probs=0.4),
+                                   quantile(o_ordered_no_zeroes_ord_cols[o_ordered_no_zeroes_ord_cols > 0], probs=0.5),
+                                   quantile(o_ordered_no_zeroes_ord_cols[o_ordered_no_zeroes_ord_cols > 0], probs=0.6),
+                                   quantile(o_ordered_no_zeroes_ord_cols[o_ordered_no_zeroes_ord_cols > 0], probs=0.7),
+                                   quantile(o_ordered_no_zeroes_ord_cols[o_ordered_no_zeroes_ord_cols > 0], probs=0.8),
+                                   quantile(o_ordered_no_zeroes_ord_cols[o_ordered_no_zeroes_ord_cols > 0], probs=0.9),
+                                   quantile(o_ordered_no_zeroes_ord_cols[o_ordered_no_zeroes_ord_cols > 0], probs=1)), 
+                                 c("blue", "pink", "pink", "pink", "pink", "red", "red", "red", "red", "red", "red")
+                                 )
+                                   
+  
+  draw(
+    Heatmap(
+      o_ordered_no_zeroes_ord_cols, col=plot_col,
+      row_names_side = "left", cluster_rows = FALSE,
+      row_names_max_width = max_text_width(
+        rownames(o_ordered_no_zeroes_ord_cols), 
+        gp = gpar(fontsize = 12)),
+      column_order = sort(names(o_ordered_no_zeroes))
+    ),
+      newpage=T
+      )
+}
+unique_transferred_contigs<-unique(transferred_contigs)
+
+table_contigs_per_person<-list_to_matrix(list_transferred_contigs)
+comb_matrix<-make_comb_mat(table_contigs_per_person)
+#write.csv(table_contigs_per_person, "~/Downloads/table_contigs_per_person.csv")
+UpSet(comb_matrix)
+
+
+#t<-data.frame(ps_pX@otu_table)
+#t[rowSums(t)>0,]
+```
+
+```{r ordination plot with only transferred objects}
+library(microViz)
+library(vegan)
+library(ggplot2)
+
+ps_transferred<-prune_taxa(unique_transferred_contigs, ps2)
+
+tax=data.frame(tax_table(ps_transferred))
+tax_phy=tax_table(as.matrix(tax))
+
+o<-as.data.frame(otu_table(ps_transferred))
+#rownames(o)<-t$unique_id
+OTU = otu_table(as.matrix(o), taxa_are_rows = TRUE)
+#OTU <- OTU[rowSums(OTU_phy)>0]
+OTU_phy = phyloseq(OTU)
+
+m<-as.data.frame(sample_data(ps_transferred))
+meta_phy = sample_data(data.frame(m, row.names=sample_names(OTU), stringsAsFactors=FALSE))
+meta_phy$Type<-as.factor(meta_phy$Type)
+meta_phy$Person<-as.factor(meta_phy$Person)
+meta_phy$Day<-as.factor(meta_phy$Day)
+meta_phy$Object<-as.factor(meta_phy$Object)
+meta_phy$Object2<-as.factor(meta_phy$Object2)
+meta_phy$Group1<-as.factor(meta_phy$Group1)
+
+ps3_<-merge_phyloseq(OTU_phy[,colSums(OTU_phy)>0], meta_phy, tax_phy)
+ps3<-subset_samples(ps3_,Person %in% c("P_P_1", "P_P_2","P_P_3","P_P_6","P_P_8","P_P_10"))
+
+ps3 %>%
+  # when no distance matrix or constraints are supplied, PCA is the default/auto ordination method
+  dist_calc(dist = "aitchison", binary=TRUE, na.rm = TRUE) %>%
+  ord_calc("PCoA") %>%
+  ord_plot(color = "Person", shape = "Object3", size = 3)
+#  scale_colour_brewer(palette = "Dark2")
+
+ps3 %>%
+  # when no distance matrix or constraints are supplied, PCA is the default/auto ordination method
+  dist_calc(dist = "kulczynski", binary=TRUE, na.rm = TRUE) %>%
+  ord_calc("PCoA") %>%
+  #ord_plot(color = "Person", shape = "Object3", size = "Object2", axes = c(1,2))
+  ord_plot(color = "Person", shape = "Object2", size = 3, axes = c(1,2))
+  #ord_plot(color = "Person", shape = "Object2", size = 3, axes = c(1,3))+ stat_ellipse(aes(linetype = Person, colour = Person))
+#  scale_colour_brewer(palette = "Dark2")
+
+dist_mat<-vegdist(t(otu_table(ps3)), method='kulczynski',na.rm=TRUE)
+sample_data<-data.frame(sample_data(ps3))
+adonis2(dist_mat~as.factor(sample_data$Person) + as.factor(sample_data$Day) + as.factor(sample_data$Object), data=sample_data, permutations=999)
+#adonis2(dist_mat~as.factor(sample_data$Person), data=sample_data, permutations=9999)
+
+ps3 %>%
+  # when no distance matrix or constraints are supplied, PCA is the default/auto ordination method
+  dist_calc(dist = "jaccard", binary=TRUE, na.rm = TRUE) %>%
+  ord_calc("PCoA") %>%
+  ord_plot(color = "Person", shape = "Object2", size = 3, axes = c(1,4))
+  #ord_plot(color = "Person", shape = "Object2", size = 3, axes = c(1,3)) + stat_ellipse(aes(linetype = Person, colour = Person))
+#  scale_colour_brewer(palette = "Dark2")
+
+library("scatterplot3d")
+
+##ps3_ord <- ps3 %>%
+##  # when no distance matrix or constraints are supplied, PCA is the default/auto ordination method
+##  dist_calc(dist = "jaccard", binary=TRUE, na.rm = TRUE) %>%
+##  ord_calc("PCoA")
+##x<-ps3_ord@ord$Ybar[,1]
+##y<-ps3_ord@ord$Ybar[,2]
+##z<-ps3_ord@ord$Ybar[,3]
+##sam_data<-data.frame(ps3@sam_data)
+##col_by<-as.numeric(gsub("P_P_","",sam_data$Person))
+#col_by<-sam_data$Person
+##colors=c("blue","red","green","brown","cyan","purple","black")
+#colors=c("blue","red","green","brown","purple","black")
+#data_3d<-data.frame(x,y,z,col_by)
+#data_3d<-data.frame(MDS1,MDS2,MDS3,col_by)
+##colors <- colors[as.numeric(data_3d$col_by)]
+##scatter3D(x, y, z, colvar=col_by, col=gg.col(length(col_by)))
+#
+#col_by<-gsub("P_P_10","blue",col_by)
+#col_by<-gsub("P_P_1","red",col_by)
+#col_by<-gsub("P_P_2","green",col_by)
+#col_by<-gsub("P_P_3","brown",col_by)
+##col_by<-gsub("P_P_4","cyan",col_by)
+#col_by<-gsub("P_P_6","purple",col_by)
+#col_by<-gsub("P_P_8","black",col_by)
+#
+#
+#s3d<-scatterplot3d(data_3d[,1:3], angle=10, color=col_by, pch=16)
+#legend(s3d$xyz.convert(-0.7, -0.6, -0.5), legend = levels(data_3d$col_by), col =  colors, pch = 19)
+
+ps3_ord <- ps3 %>%
+  # when no distance matrix or constraints are supplied, PCA is the default/auto ordination method
+  dist_calc(dist = "jaccard", binary=TRUE, na.rm = TRUE) %>%
+  ord_calc("PCoA")
+MDS1<-ps3_ord@ord$Ybar[,1]
+MDS2<-ps3_ord@ord$Ybar[,2]
+MDS3<-ps3_ord@ord$Ybar[,3]
+sam_data<-data.frame(ps3@sam_data)
+col_by<-gsub("P_P_","P_",sam_data$Person)
+#col_by<-sam_data$Person
+colors=c("red","brown","green","cyan","purple","violet")
+data_3d<-data.frame(MDS1,MDS2,MDS3,col_by)
+data_3d$col_by<-as.factor(data_3d$col_by)
+
+col_by<-gsub("P_10","brown",col_by)
+col_by<-gsub("P_1","red",col_by)
+col_by<-gsub("P_2","green",col_by)
+col_by<-gsub("P_3","cyan",col_by)
+col_by<-gsub("P_4","blue",col_by)
+col_by<-gsub("P_6","purple",col_by)
+col_by<-gsub("P_8","violet",col_by)
+
+
+s3d <- scatterplot3d(data_3d[,1:3], angle=10, color=col_by, pch=19)
+legend(s3d$xyz.convert(-0.7, -0.6, 0), legend = levels(data_3d$col_by), col =  colors, pch = 19)
+
+dist_mat<-vegdist(t(otu_table(ps3)), method='jaccard',na.rm=TRUE)
+sample_data<-data.frame(sample_data(ps3))
+adonis2(dist_mat~as.factor(sample_data$Person) + as.factor(sample_data$Day) + as.factor(sample_data$Object), data=sample_data, permutations=999)
+#adonis2(dist_mat~as.factor(sample_data$Person), data=sample_data, permutations=9999)
+
+ps3_relative <- transform_sample_counts(ps3, function(x) x / sum(x) )
+ps3_relative %>%
+  # when no distance matrix or constraints are supplied, PCA is the default/auto ordination method
+  dist_calc(dist = "bray", na.rm = TRUE) %>%
+  ord_calc("PCoA") %>%
+  ord_plot(color = "Person", shape = "Object2", size = 3)
+#  scale_colour_brewer(palette = "Dark2")
+
+dist_mat<-vegdist(t(otu_table(ps3_relative)), method='bray',na.rm=TRUE)
+sample_data<-data.frame(sample_data(ps3_relative))
+#adonis2(dist_mat~as.factor(sample_data$Person) + as.factor(sample_data$Day) + as.factor(sample_data$Object), data=sample_data, permutations=999)
+adonis2(dist_mat~as.factor(sample_data$Person), data=sample_data, permutations=9999)
+
+```
+
+```{r export tables to csv}
+write.csv(otu_table(ps3),"TO_otu_table_transferred.csv")
+write.csv(tax_table(ps3),"TO_tax_table_transferred.csv")
+write.csv(data.frame(sample_data(ps3)),"TO_meta_table_transferred.csv") 
+
+```

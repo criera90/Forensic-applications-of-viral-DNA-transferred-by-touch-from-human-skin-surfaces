@@ -1,0 +1,161 @@
+---
+title: "Heatmap"
+author: "Carlos Riera-Ruiz"
+date: "2023-10-02"
+output:
+  pdf_document: default
+  html_document: default
+  
+---
+
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = '/Users/crieraruiz/Library/CloudStorage/OneDrive-UniversityofNebraska-Lincoln/01_SF_lab/Projects/00_IN_PROGRESS/NIJ2_data_analysis/ordinations2/objects/05_heatmap/')
+```
+
+```{r create phyloseq object with original data}
+library(phyloseq)
+library(microbiome)
+library(microViz)
+otu_original<-"TO_otu_table_unique.csv"
+meta_original<-"TO_meta_table_unique.csv"
+tax_original<-"TO_tax_table_unique.csv"
+
+# import otu table
+#otu table
+otu<-read.table(otu_original, header=T, row.names=1, check.names=F, sep=",")
+OTU = otu_table(as.matrix(otu), taxa_are_rows = TRUE)
+OTU_phy = phyloseq(OTU)
+#meta data
+meta<-read.table(meta_original, header=T, row.names=1, check.names=F, sep=",")
+meta$Person<-paste0("P_",meta$Person)
+meta_phy = sample_data(data.frame(meta, row.names=sample_names(OTU_phy), stringsAsFactors=FALSE))
+meta_phy$Type<-as.factor(meta_phy$Type)
+meta_phy$Person<-as.factor(meta_phy$Person)
+meta_phy$Day<-as.factor(meta_phy$Day)
+meta_phy$Object<-as.factor(meta_phy$Object)
+meta_phy$Object2<-as.factor(meta_phy$Object2)
+meta_phy$Group1<-as.factor(meta_phy$Group1)
+#tax table
+tax<-read.table(tax_original, header=T, row.names=1, check.names=F, sep=",")
+
+# create phyloseq
+OTU = otu_table(as.matrix(otu), taxa_are_rows = TRUE)
+OTU_phy = phyloseq(OTU)
+meta_phy = sample_data(data.frame(meta, row.names=sample_names(OTU_phy), stringsAsFactors=FALSE))
+tax_phy=tax_table(as.matrix(tax))
+ps = merge_phyloseq(OTU_phy[,colSums(OTU_phy)>0], meta_phy, tax_phy)
+ps
+
+ps=subset_taxa(ps, unique_id!="BeAn 58058 virus_TAXID_No_67082")
+
+```
+```{r heatmap p1}
+
+```
+
+
+
+```{r Families that are also found by Graham et al 2021}
+intersect_graham_families<-intersect(c(ps@tax_table[,7]),c("Baculoviridae", "Genomoviridae", "Herelleviridae", "Myoviridae", "Papillomaviridae", "Podoviridae", "Siphoviridae", "Caudovirales", "Unclassified Homo sapiens like virus"))
+intersect_graham_families
+
+```
+
+```{r make phyloseq object with contigs present in hands and transferred to objects}
+library(ComplexHeatmap)
+#install.packages("circlize")
+#library(circlize)
+# take only samples pertaining to hands or objects. Not pooled samples
+samples_to_keep<-c("Hands","Ceramic","Plastic","Knife","Phone","Glass") # list of sample names correspoinding to hands or objects
+# make ps object with all objects but keeping only hands from day 0
+ps_only_hands0<-subset_samples( ps, !( Object %in% c("Hands") & Day %in% c(1,2) ) )
+# keep only objects and hands (remove pooled samples)
+ps_only_objects<-subset_samples(ps_only_hands0, Object %in% samples_to_keep)
+
+# get a list of contigs present in hands day 0
+ps_hands <- ps_filter(ps_only_objects, Object3 %in% c("Hands_0"))
+#ps_hands <- ps_filter(ps_only_objects, Object3 %in% c("Hands_0"))
+ps_hands_contigs<-rownames(otu_table(ps_hands))
+ps_hands_contigs
+ps2 <- prune_taxa(ps_hands_contigs,ps_only_objects)  # phyloseq objects with contigs present in hands only and shared with objects
+```
+```{r overall heatmap}
+pX_otu<-data.frame(ps2@otu_table)
+hands_column<-grep("Hands",colnames(pX_otu), value=T)
+#pX_otu_sorted<-pX_otu[order(-pX_otu[[hands_column]]),]
+
+```
+
+
+```{r make phyloseq object with contigs present in hands and transferred to objects}
+transferred_contigs<-c()
+list_transferred_contigs<-list()
+for (person in seq(2)){
+  ps_pX<-subset_samples(ps2,Person==paste0("P_",person))
+  pX_otu<-data.frame(ps_pX@otu_table)
+  hands_column<-grep("Hands",colnames(pX_otu), value=T)
+  #pX_otu_sorted<-pX_otu[order(-pX_otu$TO_3_0_Hands),]
+  pX_otu_sorted<-pX_otu[order(-pX_otu[[hands_column]]),] # instead of -pX_otu$TO_1_0_Hands
+  contigs_in_hands<-rownames(pX_otu_sorted[pX_otu_sorted[[hands_column]]>0,])
+  pX_otu_sorted_no_hands<-pX_otu_sorted[!(names(pX_otu_sorted) %in% c(hands_column))]
+  pX_otu_sorted_no_hands_but_shared_with_hands<-pX_otu_sorted_no_hands[rownames(pX_otu_sorted_no_hands) %in% contigs_in_hands,]
+  contigs_transferred<-rownames(pX_otu_sorted_no_hands_but_shared_with_hands[rowSums(pX_otu_sorted_no_hands_but_shared_with_hands)>0,])
+  transferred_contigs<-c(transferred_contigs,contigs_transferred)
+  list_transferred_contigs[[paste0("P_",person)]]<-contigs_transferred
+  #contigs_to_keep<-names(sort(taxa_sums(ps_pX),TRUE)[sort(taxa_sums(ps_pX),TRUE) > 0.01])[1:10]
+  #contigs_to_keep<-names(sort(taxa_sums(ps_pX),TRUE)[sort(taxa_sums(ps_pX),TRUE) > 0.01])
+  if (!identical(contigs_transferred, character(0))) {
+    pX_otu_transferred<-prune_taxa(contigs_transferred,ps_pX)
+    o<-data.frame(pX_otu_transferred@otu_table)
+  } else {
+    o<-data.frame(pX_otu_sorted[pX_otu_sorted[[hands_column]]>0,])
+  }
+  o_ordered<-o[order(-o[[hands_column]]),]
+  o_ordered_no_zeroes<-o_ordered[o_ordered[[hands_column]]>0,]
+  o_ordered_no_zeroes_ord_cols<-as.matrix(o_ordered_no_zeroes[,order(names(o_ordered_no_zeroes))])
+  print(o_ordered_no_zeroes_ord_cols)
+  max_tpm<-max(o_ordered_no_zeroes_ord_cols)
+  plot_col<-circlize::colorRamp2(c(0, 
+                                   quantile(o_ordered_no_zeroes_ord_cols[o_ordered_no_zeroes_ord_cols > 0], probs=0.5),
+                                   quantile(o_ordered_no_zeroes_ord_cols[o_ordered_no_zeroes_ord_cols > 0], probs=0.1),
+                                   quantile(o_ordered_no_zeroes_ord_cols[o_ordered_no_zeroes_ord_cols > 0], probs=0.3),
+                                   quantile(o_ordered_no_zeroes_ord_cols[o_ordered_no_zeroes_ord_cols > 0], probs=0.4),
+                                   quantile(o_ordered_no_zeroes_ord_cols[o_ordered_no_zeroes_ord_cols > 0], probs=0.5),
+                                   quantile(o_ordered_no_zeroes_ord_cols[o_ordered_no_zeroes_ord_cols > 0], probs=0.6),
+                                   quantile(o_ordered_no_zeroes_ord_cols[o_ordered_no_zeroes_ord_cols > 0], probs=0.7),
+                                   quantile(o_ordered_no_zeroes_ord_cols[o_ordered_no_zeroes_ord_cols > 0], probs=0.8),
+                                   quantile(o_ordered_no_zeroes_ord_cols[o_ordered_no_zeroes_ord_cols > 0], probs=0.9),
+                                   quantile(o_ordered_no_zeroes_ord_cols[o_ordered_no_zeroes_ord_cols > 0], probs=1)), 
+                                 c("blue", "pink", "pink", "pink", "pink", "red", "red", "red", "red", "red", "red")
+                                 )
+                                   
+  
+  draw(
+    Heatmap(
+      o_ordered_no_zeroes_ord_cols, col=plot_col,
+      row_names_side = "left", cluster_rows = FALSE,
+      row_names_max_width = max_text_width(
+        rownames(o_ordered_no_zeroes_ord_cols), 
+        gp = gpar(fontsize = 12)),
+      column_order = sort(names(o_ordered_no_zeroes))
+    ),
+      newpage=T
+      )
+}
+unique_transferred_contigs<-unique(transferred_contigs)
+
+table_contigs_per_person<-list_to_matrix(list_transferred_contigs)
+comb_matrix<-make_comb_mat(table_contigs_per_person)
+#write.csv(table_contigs_per_person, "~/Downloads/table_contigs_per_person.csv")
+UpSet(comb_matrix)
+
+
+#t<-data.frame(ps_pX@otu_table)
+#t[rowSums(t)>0,]
+```
+
+
+
+
+
+```

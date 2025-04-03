@@ -1,0 +1,315 @@
+---
+title: "Figure 1"
+author: "Carlos Riera-Ruiz"
+date: "2024-05-14"
+output:
+  pdf_document: default
+  html_document: default
+  
+---
+
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = '.')
+getwd()
+list.files()
+```
+
+```{r create phyloseq object with original data of all viruses}
+library(phyloseq)
+library(microbiome)
+library(microViz)
+otu_original<-"TO_otu_table_transferred.csv"
+meta_original<-"TO_meta_table_transferred.csv"
+tax_original<-"TO_tax_table_transferred.csv"
+
+# import otu table
+#otu table
+otu<-read.table(otu_original, header=T, row.names=1, check.names=F, sep=",")
+OTU = otu_table(as.matrix(otu), taxa_are_rows = TRUE)
+OTU_phy = phyloseq(OTU)
+#meta data
+meta<-read.table(meta_original, header=T, row.names=1, check.names=F, sep=",")
+#meta$Person<-paste0("P_",meta$Person)
+meta_phy = sample_data(data.frame(meta, row.names=sample_names(OTU_phy), stringsAsFactors=FALSE))
+meta_phy$Type<-as.factor(meta_phy$Type)
+meta_phy$Person<-as.factor(meta_phy$Person)
+meta_phy$Day<-as.factor(meta_phy$Day)
+meta_phy$Object<-as.factor(meta_phy$Object)
+meta_phy$Object2<-as.factor(meta_phy$Object2)
+#tax table
+tax<-read.table(tax_original, header=T, row.names=1, check.names=F, sep=",")
+
+# create phyloseq
+OTU = otu_table(as.matrix(otu), taxa_are_rows = TRUE)
+OTU_phy = phyloseq(OTU)
+meta_phy = sample_data(data.frame(meta, row.names=sample_names(OTU_phy), stringsAsFactors=FALSE))
+tax_phy=tax_table(as.matrix(tax))
+ps = merge_phyloseq(OTU_phy[,colSums(OTU_phy)>0], meta_phy, tax_phy)
+ps
+
+```
+
+```{r make phyloseq object with only objects}
+samples_to_keep<-c("Hands","Ceramic","Plastic","Knife","Phone","Glass")
+ps_only_objects<-subset_samples(ps, Object %in% samples_to_keep & Day %in% c(0))
+ps_only_objects<-subset_samples(ps, Object %in% samples_to_keep)
+ps_only_objects
+
+```
+
+```{r get otu without contigs absent in hands}
+
+ps_hands <- ps_filter(ps_only_objects, Object == "Hands")
+ps_hands_contigs<-rownames(otu_table(ps_hands))
+#ps_hands_contigs
+ps2 <- prune_taxa(ps_hands_contigs,ps_only_objects)  # phyloseq objects with contigs present in hands only and shared with objects
+ps2
+```
+
+```{r Subject viral diversity }
+# reference: https://rdrr.io/cran/TraMineR/man/dissmfacw.html
+# cite as: "Discrepancy Analysis of Complex Objects Using Dissimilarities" it's already on EndNote with it's PDF
+library(vegan)
+library(TraMineR)
+#dist_mat<-as.matrix(vegdist(t(otu_table(ps2)), method='kulczynski',na.rm=TRUE))
+dist_mat<-as.matrix(vegdist(t(otu_table(ps2)), method='jaccard',na.rm=TRUE))
+data2=data.frame(sample_data(ps2))
+print(dissmfacw(dist_mat ~ Person + Day + Object + Object2, data=data2, R=4000))
+```
+
+
+```{r disfference between day 1 and day 2 distances per person}
+# intrasubject samples for Ceramic
+# origin sample set
+#library(usedist)
+#
+#for (i in c(1,2,3,6,8,10)){
+#  df<-data.frame()
+#  col_names<-c()
+#  person<-paste0("P_",i)
+#  day<-1
+#  col_names<-c(col_names,paste("TO",i,day,sep="_"))
+#  objects<-c("Plastic","Ceramic", "Glass", "Knife", "Phone")
+#  origin_set<-rownames(sample_data(ps2)[sample_data(ps2)$Person == person & sample_data(ps2)$Day == 0 & sample_data(ps2)$Object == "Hands"])
+#  destination_set<-rownames(sample_data(ps2)[sample_data(ps2)$Person == person & sample_data(ps2)$Day == day & sample_data(ps2)$Object %in% objects])
+#  p_column<-rep(person,length(destination_set))
+#  d_column<-rep(day,length(destination_set))
+#  origin_set_column<-rep(origin_set,length(destination_set))
+#  d<-as.numeric(dist_get(dist_mat,origin_set,destination_set))
+#  df_temp<-data.frame(cbind(destination_set,d))
+#  df_temp<-cbind(p_column,d_column,origin_set_column,df_temp)
+#  df<-rbind(df,df_temp)
+#  
+#  day<-2
+#  col_names<-c(col_names,paste("TO",i,day,sep="_"))
+#  objects<-c("Plastic","Ceramic", "Glass", "Knife", "Phone")
+#  origin_set<-rownames(sample_data(ps2)[sample_data(ps2)$Person == person & sample_data(ps2)$Day == 0 & sample_data(ps2)$Object == "Hands"])
+#  destination_set<-rownames(sample_data(ps2)[sample_data(ps2)$Person == person & sample_data(ps2)$Day == day & sample_data(ps2)$Object %in% objects])
+#  p_column<-rep(person,length(destination_set))
+#  d_column<-rep(day,length(destination_set))
+#  origin_set_column<-rep(origin_set,length(destination_set))
+#  d<-as.numeric(dist_get(dist_mat,origin_set,destination_set))
+#  df_temp<-data.frame(cbind(destination_set,d))
+#  df_temp<-cbind(p_column,d_column,origin_set_column,df_temp)
+#  df<-rbind(df,df_temp)
+#  
+#  df$d<-as.numeric(df$d)
+#  
+#  res <- wilcox.test(d ~ d_column, data = df,
+#                     exact = FALSE)
+#  print(i)
+#  print(res$p.value)
+#  
+#  
+#  #install.packages("ggpubr")
+#  library("ggpubr")
+#  plot<-ggboxplot(df, x = "d_column", y = "d", 
+#             color = "d_column", palette = c("#00AFBB", "#E7B800"),
+#             ylab = "Distance", xlab = "Day")
+#  plot(plot)
+#}
+```
+
+
+
+```{r use all objects hands for between within comparisons}
+# comparing within distance (average of distances between hands of a subject and the objects they touched)
+# comparing between distances (average of distances between hands of a subject and objects they didn't touch)
+library(phyloseq)
+library(microViz) # to use ps_filter()
+library(vegan)  # to use vegdist()
+# get ps object with only object samples (not DNase ones) in a phyloseq object called ps3
+objects<-c("Plastic","Ceramic", "Glass", "Knife", "Phone", "Hands")
+ps3<-ps_filter(ps2, Object %in% objects)
+# add column to sample_data with the new class (combining days per person and object)
+# get new otu table by merging samples
+SD_temp<-sample_data(ps3)
+SD_temp$Person<-gsub("P_","",SD_temp$Person)
+new_row_in_SD_temp<-c()
+for (i in rownames(SD_temp)){
+  type<-SD_temp[i][,"Type"]
+  person<-unlist(SD_temp[i][,"Person"])
+  object<-SD_temp[i][,"Object"]
+  new_samp_name<-paste(type,person,object,sep="_")
+  new_row_in_SD_temp<-c(new_row_in_SD_temp,new_samp_name)
+}
+SD_temp<-cbind(SD_temp,new_row_in_SD_temp)
+sample_data(ps3)<-sample_data(SD_temp)
+ps_tmp<-merge_samples(ps3,"new_row_in_SD_temp")
+# make new phyloseq object with new sample_data()
+# new otu table
+otu_tmp<-t(otu_table(ps_tmp))
+
+# new sample data table
+colnames(otu_tmp)
+meta_tmp <- data.frame(); meta_tmp
+inm<-colnames(otu_tmp)
+for (i in inm) {
+  meta_tmp<-rbind(meta_tmp,unlist(strsplit(i,"_")))
+}
+colnames(meta_tmp)<-c("Type","Person","Object")
+rownames(meta_tmp)<-colnames(otu_tmp)
+meta_tmp<-cbind(meta_tmp,Object2=NA)
+meta_tmp<-cbind(meta_tmp,Group1=NA)
+meta_tmp
+# add column "Object2" which only has as labels Object or Hands
+for (i in rownames(meta_tmp)) 
+  {
+  if (meta_tmp[i,"Object"] != "Hands") 
+    {
+    meta_tmp[i,"Object2"] <- "Object"
+    }
+  else {
+    meta_tmp[i,"Object2"] <- "Hands"
+    }
+}
+
+meta_tmp$Person <- as.numeric(meta_tmp$Person)
+for (i in rownames(meta_tmp)) {
+  if (meta_tmp[i,"Person"] <=3) {meta_tmp[i,"Group1"] <- 1}
+  if (meta_tmp[i,"Person"] > 3 && meta_tmp[i,"Person"] <= 7) {meta_tmp[i,"Group1"] <- 2}
+  if (meta_tmp[i,"Person"] > 7 && meta_tmp[i,"Person"] <= 10) {meta_tmp[i,"Group1"] <- 3}
+  }
+meta_tmp
+
+# make new ps object
+OTU = otu_table(as.matrix(otu_tmp), taxa_are_rows = TRUE)
+OTU_phy = phyloseq(OTU)
+meta_phy = sample_data(data.frame(meta_tmp, row.names=sample_names(OTU_phy), stringsAsFactors=FALSE))
+meta_phy$Person<-as.factor(meta_phy$Person)
+meta_phy$Group1<-as.factor(meta_phy$Group1)
+
+
+ps_bet_wit = merge_phyloseq(OTU_phy, meta_phy)
+ps_bet_wit
+
+# get dist_mat
+library(TraMineR)
+dist_mat<-vegdist(t(otu_table(ps_bet_wit)), method='jaccard',na.rm=TRUE)
+as.matrix(dist_mat)
+
+# get between and within distances and comparisons
+library(usedist)
+df<-data.frame()
+df_bet_wit<-data.frame()
+SD_temp<-data.frame(ps_bet_wit@sam_data)
+# get between and within distances and comparisons
+library(usedist)
+df<-data.frame()
+df_wit_bet<-data.frame()
+#SD_temp$Person<-as.numeric(SD_temp$Person)
+for (person in SD_temp$Person) {
+  df_temp<-data.frame()
+  # get hand, between and within sets to be used by getdist()
+  person <- as.numeric(person)
+  others <- unique(SD_temp[which(!SD_temp$Person == person),]$Person)
+  within_set <- rownames(subset(data.frame(sample_data(ps_bet_wit)), Person == person))
+  between_set <- rownames(subset(data.frame(sample_data(ps_bet_wit)), Person %in% others))
+  
+  p_column<-rep(person,length(within_set)+length(between_set))
+  #origin_set_column<-rep(hand_set,length(p_column))
+  #destination_set_column<-c(within_set,between_set)
+  group_column<-c(rep("person",length(within_set)),rep("others",length(between_set)))
+  df_temp<-dist_groups(dist_mat, group_column)
+  
+  df_within<-subset(df_temp, Label == "Within person")
+  #df_between<-subset(df_temp, Label == "Between others and person" | Label == "Within others")
+  df_between<-subset(df_temp, Label == "Between others and person")
+  
+  d_wit_mean<-mean(df_within$Distance)
+  d_bet_mean<-mean(df_between$Distance)
+  Distance<-c(d_wit_mean,d_bet_mean)
+  Person<-rep(person,length(Distance))
+  Group<-c("Within","Between")
+  
+  df_wit_bet_temp<-data.frame(Person, Group, Distance)
+  df_wit_bet<-rbind(df_wit_bet,df_wit_bet_temp)
+} 
+
+df_wit_bet$Distance<-as.numeric(df_wit_bet$Distance)
+
+res <- wilcox.test(Distance ~ Group, data = df_wit_bet,
+                   exact = FALSE)
+print(res$p.value)
+
+#install.packages("ggpubr")
+plot<-ggboxplot(df_wit_bet, x = "Group", y = "Distance",
+           ylab = "Average Jaccard Distance", xlab = "") +
+  theme(panel.background = element_blank(), 
+        axis.line = element_line(colour = "black"), 
+        axis.text.x = element_text(size = 10), 
+        axis.text.y = element_text(size = 10))
+  
+plot(plot)
+
+df_temp
+```
+
+#```{r use all objects but not hands for between within comparisons}
+## get between and within distances and comparisons
+#library(usedist)
+#df<-data.frame()
+#df_wit_bet<-data.frame()
+#to_remove_hands<-rownames(subset(sample_data(ps_bet_wit), Object2=="Hands"))
+#for (person in seq(1:10)) {
+#  df_temp<-data.frame()
+#  # get hand, between and within sets to be used by getdist()
+#  person <- as.numeric(person)
+#  others <- which(!seq(1:10) == person)
+#  within_set <- rownames(subset(data.frame(sample_data(ps_bet_wit)), Person == person))
+#  between_set <- rownames(subset(data.frame(sample_data(ps_bet_wit)), Person %in% others))
+#  
+#  p_column<-rep(person,length(within_set)+length(between_set))
+#  #origin_set_column<-rep(hand_set,length(p_column))
+#  #destination_set_column<-c(within_set,between_set)
+#  group_column<-c(rep("person",length(within_set)),rep("others",length(between_set)))
+#  df_temp<-dist_groups(dist_mat, group_column)
+#  
+#  df_within<-subset(df_temp, Label == "Within person" & !Item1 %in% to_remove_hands)
+#  #df_between<-subset(df_temp, Label == "Between others and person" | Label == "Within others")
+#  df_between<-subset(df_temp, Label == "Between others and person" & !Item1 %in% to_remove_hands)
+#  
+#  d_wit_mean<-mean(df_within$Distance)
+#  d_bet_mean<-mean(df_between$Distance)
+#  Distance<-c(d_wit_mean,d_bet_mean)
+#  Person<-rep(person,length(Distance))
+#  Group<-c("Within","Between")
+#  
+#  df_wit_bet_temp<-data.frame(Person, Group, Distance)
+#  df_wit_bet<-rbind(df_wit_bet,df_wit_bet_temp)
+#} 
+#
+#df_wit_bet$Distance<-as.numeric(df_wit_bet$Distance)
+#
+#res <- wilcox.test(Distance ~ Group, data = df_wit_bet,
+#                   exact = FALSE)
+#print(res$p.value)
+#
+##install.packages("ggpubr")
+#library("ggpubr")
+#plot<-ggboxplot(df_wit_bet, x = "Group", y = "Distance", 
+#           color = "Group", palette = c("#00AFBB", "#E7B800"),
+#           ylab = "Distance", xlab = "")
+#plot(plot)
+#df_temp
+#```

@@ -1,0 +1,669 @@
+---
+title: "Figure 1"
+author: "Carlos Riera-Ruiz"
+date: "2024-05-14"
+output:
+  pdf_document: default
+  html_document: default
+  
+---
+
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = '.')
+getwd()
+list.files()
+```
+
+```{r create phyloseq object with original data of all viruses}
+library(phyloseq)
+library(microbiome)
+library(microViz)
+otu_original<-"TO_otu_table_transferred.csv"
+meta_original<-"TO_meta_table_transferred.csv"
+tax_original<-"TO_tax_table_transferred.csv"
+
+tax_with_lengths<-"TO_tax_table_with_lengths.csv"
+
+# import otu table
+#otu table
+otu<-read.table(otu_original, header=T, row.names=1, check.names=F, sep=",")
+OTU = otu_table(as.matrix(otu), taxa_are_rows = TRUE)
+OTU_phy = phyloseq(OTU)
+#meta data
+meta<-read.table(meta_original, header=T, row.names=1, check.names=F, sep=",")
+#meta$Person<-paste0("P_",meta$Person)
+meta_phy = sample_data(data.frame(meta, row.names=sample_names(OTU_phy), stringsAsFactors=FALSE))
+meta_phy$Type<-as.factor(meta_phy$Type)
+meta_phy$Person<-as.factor(meta_phy$Person)
+meta_phy$Day<-as.factor(meta_phy$Day)
+meta_phy$Object<-as.factor(meta_phy$Object)
+meta_phy$Object2<-as.factor(meta_phy$Object2)
+#tax table
+tax<-read.table(tax_original, header=T, row.names=1, check.names=F, sep=",")
+
+# create phyloseq
+OTU = otu_table(as.matrix(otu), taxa_are_rows = TRUE)
+OTU_phy = phyloseq(OTU)
+meta_phy = sample_data(data.frame(meta, row.names=sample_names(OTU_phy), stringsAsFactors=FALSE))
+tax_phy=tax_table(as.matrix(tax))
+ps = merge_phyloseq(OTU_phy[,colSums(OTU_phy)>0], meta_phy, tax_phy)
+ps
+
+#removve Bean virus because it is likely a virus integrated in the human genome
+ps=subset_taxa(ps, unique_id!="BeAn 58058 virus_TAXID_No_67082")
+```
+
+```{r make phyloseq object with only objects}
+samples_to_keep<-c("Hands","Ceramic","Plastic","Knife","Phone","Glass")
+ps_only_objects<-subset_samples(ps, Object %in% samples_to_keep & Day %in% c(0))
+ps_only_objects<-subset_samples(ps, Object %in% samples_to_keep)
+ps_only_objects
+
+```
+
+```{r}
+
+ps_relative <- transform_sample_counts(ps_only_objects, function(x) x/sum(x) )
+sample_data(ps_relative)$Object = factor(sample_data(ps_relative)$Object, levels = samples_to_keep)
+ps_relative
+
+```
+
+```{r get otu without contigs absent in hands}
+
+ps_hands <- ps_filter(ps_only_objects, Object == "Hands")
+ps_hands_contigs<-rownames(otu_table(ps_hands))
+#ps_hands_contigs
+ps2 <- prune_taxa(ps_hands_contigs,ps_only_objects)  # phyloseq objects with contigs present in hands only and shared with objects
+ps2
+```
+
+
+```{r Get shared contigs for P1}
+#install.packages("UpSetR")
+library(UpSetR)
+person<-c("P_1")
+day<-c(0,1)
+ps1 <- ps_filter(ps2, Person %in% person, Day %in% day)
+df <- data.frame(otu_table(ps1)); df[df>1]<-1
+objects<-rownames(sample_data(ps1))[!grepl('Hands', sample_data(ps1)$Object)]
+hands<-rownames(sample_data(ps1))[grepl('Hands', sample_data(ps1)$Object)]
+i<-0
+q<-list()
+for (hand in hands) {
+    for (object in objects) {
+    i<-i+1
+    #print(hand)
+    #print(object)
+    tmp <- list(query = intersects, params = list(hand, object), color = "red", active = F)
+    q[[i]] <- tmp
+    }
+  }
+  #upset(df,main.bar.color = "black",sets=colnames(df),empty.intersections = "off", query = q)
+#upset(df,main.bar.color = "black",sets=colnames(df),empty.intersections = "off", queries=q)
+
+#get contigs shared with hands for a given person/day/object
+df_contigs<-data.frame()
+tmp_df<-data.frame()
+for (object in objects){
+  tmp<-data.frame()
+  sub_df<-df[,c(hands,object)]
+  contigs_shared_with_hand_list<-names(which(apply(sub_df, 1, function(row) all(row !=0 ) == "TRUE")))  # find rows where there ae no zeroes
+  contigs_shared_with_hand_list_char<-paste(contigs_shared_with_hand_list,collapse=",")
+  number_contigs_shared_with_hand <- length(contigs_shared_with_hand_list)
+  obj<-unlist(strsplit(object,"_"))[4]
+  p<-c(person)
+  d<-c(day)
+  tmp<-cbind(p, d, obj, number_contigs_shared_with_hand,contigs_shared_with_hand_list_char)
+  tmp_df<-rbind(tmp_df,tmp)
+  df_contigs<-rbind(df_contigs,tmp)
+}
+
+day<-c(0,2)
+ps1 <- ps_filter(ps2, Person %in% person, Day %in% day)
+df <- data.frame(otu_table(ps1)); df[df>1]<-1
+objects<-rownames(sample_data(ps1))[!grepl('Hands', sample_data(ps1)$Object)]
+hands<-rownames(sample_data(ps1))[grepl('Hands', sample_data(ps1)$Object)]
+i<-0
+q<-list()
+for (hand in hands) {
+    for (object in objects) {
+    i<-i+1
+    #print(hand)
+    #print(object)
+    tmp <- list(query = intersects, params = list(hand, object), color = "red", active = F)
+    q[[i]] <- tmp
+    }
+  }
+
+#get contigs shared with hands for a given person/day/object
+tmp_df<-data.frame()
+for (object in objects){
+  tmp<-data.frame()
+  sub_df<-df[,c(hands,object)]
+  contigs_shared_with_hand_list<-names(which(apply(sub_df, 1, function(row) all(row !=0 ) == "TRUE")))  # find rows where there ae no zeroes
+  contigs_shared_with_hand_list_char<-paste(contigs_shared_with_hand_list,collapse=",")
+  number_contigs_shared_with_hand <- length(contigs_shared_with_hand_list)
+  obj<-unlist(strsplit(object,"_"))[4]
+  p<-c(person)
+  d<-c(day)
+  tmp<-cbind(p, d, obj , number_contigs_shared_with_hand,contigs_shared_with_hand_list_char)
+  tmp_df<-rbind(tmp_df,tmp)
+  df_contigs<-rbind(df_contigs,tmp)
+}
+```
+
+```{r Get shared contigs for P2}
+#install.packages("UpSetR")
+library(UpSetR)
+person<-c("P_2")
+day<-c(0,1)
+ps1 <- ps_filter(ps2, Person %in% person, Day %in% day)
+df <- data.frame(otu_table(ps1)); df[df>1]<-1
+objects<-rownames(sample_data(ps1))[!grepl('Hands', sample_data(ps1)$Object)]
+hands<-rownames(sample_data(ps1))[grepl('Hands', sample_data(ps1)$Object)]
+i<-0
+q<-list()
+for (hand in hands) {
+    for (object in objects) {
+    i<-i+1
+    #print(hand)
+    #print(object)
+    tmp <- list(query = intersects, params = list(hand, object), color = "red", active = F)
+    q[[i]] <- tmp
+    }
+  }
+  #upset(df,main.bar.color = "black",sets=colnames(df),empty.intersections = "off", query = q)
+#upset(df,main.bar.color = "black",sets=colnames(df),empty.intersections = "off", queries=q)
+
+#get contigs shared with hands for a given person/day/object
+tmp_df<-data.frame()
+for (object in objects){
+  tmp<-data.frame()
+  sub_df<-df[,c(hands,object)]
+  contigs_shared_with_hand_list<-names(which(apply(sub_df, 1, function(row) all(row !=0 ) == "TRUE")))  # find rows where there ae no zeroes
+  contigs_shared_with_hand_list_char<-paste(contigs_shared_with_hand_list,collapse=",")
+  number_contigs_shared_with_hand <- length(contigs_shared_with_hand_list)
+  obj<-unlist(strsplit(object,"_"))[4]
+  p<-c(person)
+  d<-c(day)
+  tmp<-cbind(p, d, obj , number_contigs_shared_with_hand,contigs_shared_with_hand_list_char)
+  tmp_df<-rbind(tmp_df,tmp)
+  df_contigs<-rbind(df_contigs,tmp)
+}
+
+day<-c(0,2)
+ps1 <- ps_filter(ps2, Person %in% person, Day %in% day)
+df <- data.frame(otu_table(ps1)); df[df>1]<-1
+objects<-rownames(sample_data(ps1))[!grepl('Hands', sample_data(ps1)$Object)]
+hands<-rownames(sample_data(ps1))[grepl('Hands', sample_data(ps1)$Object)]
+i<-0
+q<-list()
+for (hand in hands) {
+    for (object in objects) {
+    i<-i+1
+    #print(hand)
+    #print(object)
+    tmp <- list(query = intersects, params = list(hand, object), color = "red", active = F)
+    q[[i]] <- tmp
+    }
+  }
+
+#get contigs shared with hands for a given person/day/object
+tmp_df<-data.frame()
+for (object in objects){
+  tmp<-data.frame()
+  sub_df<-df[,c(hands,object)]
+  contigs_shared_with_hand_list<-names(which(apply(sub_df, 1, function(row) all(row !=0 ) == "TRUE")))  # find rows where there ae no zeroes
+  contigs_shared_with_hand_list_char<-paste(contigs_shared_with_hand_list,collapse=",")
+  number_contigs_shared_with_hand <- length(contigs_shared_with_hand_list)
+  obj<-unlist(strsplit(object,"_"))[4]
+  p<-c(person)
+  d<-c(day)
+  tmp<-cbind(p, d, obj , number_contigs_shared_with_hand,contigs_shared_with_hand_list_char)
+  tmp_df<-rbind(tmp_df,tmp)
+  df_contigs<-rbind(df_contigs,tmp)
+}
+```
+
+```{r Get shared contigs for P3}
+#install.packages("UpSetR")
+library(UpSetR)
+person<-c("P_3")
+day<-c(0,1)
+ps1 <- ps_filter(ps2, Person %in% person, Day %in% day)
+df <- data.frame(otu_table(ps1)); df[df>1]<-1
+objects<-rownames(sample_data(ps1))[!grepl('Hands', sample_data(ps1)$Object)]
+hands<-rownames(sample_data(ps1))[grepl('Hands', sample_data(ps1)$Object)]
+i<-0
+q<-list()
+for (hand in hands) {
+    for (object in objects) {
+    i<-i+1
+    #print(hand)
+    #print(object)
+    tmp <- list(query = intersects, params = list(hand, object), color = "red", active = F)
+    q[[i]] <- tmp
+    }
+  }
+
+#get contigs shared with hands for a given person/day/object
+tmp_df<-data.frame()
+for (object in objects){
+  tmp<-data.frame()
+  sub_df<-df[,c(hands,object)]
+  contigs_shared_with_hand_list<-names(which(apply(sub_df, 1, function(row) all(row !=0 ) == "TRUE")))  # find rows where there ae no zeroes
+  contigs_shared_with_hand_list_char<-paste(contigs_shared_with_hand_list,collapse=",")
+  number_contigs_shared_with_hand <- length(contigs_shared_with_hand_list)
+  obj<-unlist(strsplit(object,"_"))[4]
+  p<-c(person)
+  d<-c(day)
+  tmp<-cbind(p, d, obj , number_contigs_shared_with_hand,contigs_shared_with_hand_list_char)
+  tmp_df<-rbind(tmp_df,tmp)
+  df_contigs<-rbind(df_contigs,tmp)
+}
+
+day<-c(0,2)
+ps1 <- ps_filter(ps2, Person %in% person, Day %in% day)
+df <- data.frame(otu_table(ps1)); df[df>1]<-1
+objects<-rownames(sample_data(ps1))[!grepl('Hands', sample_data(ps1)$Object)]
+hands<-rownames(sample_data(ps1))[grepl('Hands', sample_data(ps1)$Object)]
+i<-0
+q<-list()
+for (hand in hands) {
+    for (object in objects) {
+    i<-i+1
+    #print(hand)
+    #print(object)
+    tmp <- list(query = intersects, params = list(hand, object), color = "red", active = F)
+    q[[i]] <- tmp
+    }
+  }
+
+#get contigs shared with hands for a given person/day/object
+tmp_df<-data.frame()
+for (object in objects){
+  tmp<-data.frame()
+  sub_df<-df[,c(hands,object)]
+  contigs_shared_with_hand_list<-names(which(apply(sub_df, 1, function(row) all(row !=0 ) == "TRUE")))  # find rows where there ae no zeroes
+  contigs_shared_with_hand_list_char<-paste(contigs_shared_with_hand_list,collapse=",")
+  number_contigs_shared_with_hand <- length(contigs_shared_with_hand_list)
+  obj<-unlist(strsplit(object,"_"))[4]
+  p<-c(person)
+  d<-c(day)
+  tmp<-cbind(p, d, obj , number_contigs_shared_with_hand,contigs_shared_with_hand_list_char)
+  tmp_df<-rbind(tmp_df,tmp)
+  df_contigs<-rbind(df_contigs,tmp)
+}
+```
+
+```{r Get shared contigs for P4}
+#install.packages("UpSetR")
+library(UpSetR)
+person<-c("P_4")
+day<-c(0,1)
+ps1 <- ps_filter(ps2, Person %in% person, Day %in% day)
+df <- data.frame(otu_table(ps1)); df[df>1]<-1
+objects<-rownames(sample_data(ps1))[!grepl('Hands', sample_data(ps1)$Object)]
+hands<-rownames(sample_data(ps1))[grepl('Hands', sample_data(ps1)$Object)]
+i<-0
+q<-list()
+for (hand in hands) {
+    for (object in objects) {
+    i<-i+1
+    #print(hand)
+    #print(object)
+    tmp <- list(query = intersects, params = list(hand, object), color = "red", active = F)
+    q[[i]] <- tmp
+    }
+  }
+
+#get contigs shared with hands for a given person/day/object
+tmp_df<-data.frame()
+for (object in objects){
+  tmp<-data.frame()
+  sub_df<-df[,c(hands,object)]
+  contigs_shared_with_hand_list<-names(which(apply(sub_df, 1, function(row) all(row !=0 ) == "TRUE")))  # find rows where there ae no zeroes
+  contigs_shared_with_hand_list_char<-paste(contigs_shared_with_hand_list,collapse=",")
+  number_contigs_shared_with_hand <- length(contigs_shared_with_hand_list)
+  obj<-unlist(strsplit(object,"_"))[4]
+  p<-c(person)
+  d<-c(day)
+  tmp<-cbind(p, d, obj , number_contigs_shared_with_hand,contigs_shared_with_hand_list_char)
+  tmp_df<-rbind(tmp_df,tmp)
+  df_contigs<-rbind(df_contigs,tmp)
+}
+
+day<-c(0,2)
+ps1 <- ps_filter(ps2, Person %in% person, Day %in% day)
+df <- data.frame(otu_table(ps1)); df[df>1]<-1
+objects<-rownames(sample_data(ps1))[!grepl('Hands', sample_data(ps1)$Object)]
+hands<-rownames(sample_data(ps1))[grepl('Hands', sample_data(ps1)$Object)]
+i<-0
+q<-list()
+for (hand in hands) {
+    for (object in objects) {
+    i<-i+1
+    #print(hand)
+    #print(object)
+    tmp <- list(query = intersects, params = list(hand, object), color = "red", active = F)
+    q[[i]] <- tmp
+    }
+  }
+
+#get contigs shared with hands for a given person/day/object
+tmp_df<-data.frame()
+for (object in objects){
+  tmp<-data.frame()
+  sub_df<-df[,c(hands,object)]
+  contigs_shared_with_hand_list<-names(which(apply(sub_df, 1, function(row) all(row !=0 ) == "TRUE")))  # find rows where there ae no zeroes
+  contigs_shared_with_hand_list_char<-paste(contigs_shared_with_hand_list,collapse=",")
+  number_contigs_shared_with_hand <- length(contigs_shared_with_hand_list)
+  obj<-unlist(strsplit(object,"_"))[4]
+  p<-c(person)
+  d<-c(day)
+  tmp<-cbind(p, d, obj , number_contigs_shared_with_hand,contigs_shared_with_hand_list_char)
+  tmp_df<-rbind(tmp_df,tmp)
+  df_contigs<-rbind(df_contigs,tmp)
+}
+```
+
+
+
+```{r Get shared contigs for P6}
+#install.packages("UpSetR")
+library(UpSetR)
+person<-c("P_6")
+day<-c(0,1)
+ps1 <- ps_filter(ps2, Person %in% person, Day %in% day)
+df <- data.frame(otu_table(ps1)); df[df>1]<-1
+objects<-rownames(sample_data(ps1))[!grepl('Hands', sample_data(ps1)$Object)]
+hands<-rownames(sample_data(ps1))[grepl('Hands', sample_data(ps1)$Object)]
+i<-0
+q<-list()
+for (hand in hands) {
+    for (object in objects) {
+    i<-i+1
+    #print(hand)
+    #print(object)
+    tmp <- list(query = intersects, params = list(hand, object), color = "red", active = F)
+    q[[i]] <- tmp
+    }
+  }
+
+#get contigs shared with hands for a given person/day/object
+tmp_df<-data.frame()
+for (object in objects){
+  tmp<-data.frame()
+  sub_df<-df[,c(hands,object)]
+  contigs_shared_with_hand_list<-names(which(apply(sub_df, 1, function(row) all(row !=0 ) == "TRUE")))  # find rows where there ae no zeroes
+  contigs_shared_with_hand_list_char<-paste(contigs_shared_with_hand_list,collapse=",")
+  number_contigs_shared_with_hand <- length(contigs_shared_with_hand_list)
+  obj<-unlist(strsplit(object,"_"))[4]
+  p<-c(person)
+  d<-c(day)
+  tmp<-cbind(p, d, obj , number_contigs_shared_with_hand,contigs_shared_with_hand_list_char)
+  tmp_df<-rbind(tmp_df,tmp)
+  df_contigs<-rbind(df_contigs,tmp)
+}
+
+day<-c(0,2)
+ps1 <- ps_filter(ps2, Person %in% person, Day %in% day)
+df <- data.frame(otu_table(ps1)); df[df>1]<-1
+objects<-rownames(sample_data(ps1))[!grepl('Hands', sample_data(ps1)$Object)]
+hands<-rownames(sample_data(ps1))[grepl('Hands', sample_data(ps1)$Object)]
+i<-0
+q<-list()
+for (hand in hands) {
+    for (object in objects) {
+    i<-i+1
+    #print(hand)
+    #print(object)
+    tmp <- list(query = intersects, params = list(hand, object), color = "red", active = F)
+    q[[i]] <- tmp
+    }
+  }
+
+#get contigs shared with hands for a given person/day/object
+tmp_df<-data.frame()
+for (object in objects){
+  tmp<-data.frame()
+  sub_df<-df[,c(hands,object)]
+  contigs_shared_with_hand_list<-names(which(apply(sub_df, 1, function(row) all(row !=0 ) == "TRUE")))  # find rows where there ae no zeroes
+  contigs_shared_with_hand_list_char<-paste(contigs_shared_with_hand_list,collapse=",")
+  number_contigs_shared_with_hand <- length(contigs_shared_with_hand_list)
+  obj<-unlist(strsplit(object,"_"))[4]
+  p<-c(person)
+  d<-c(day)
+  tmp<-cbind(p, d, obj , number_contigs_shared_with_hand,contigs_shared_with_hand_list_char)
+  tmp_df<-rbind(tmp_df,tmp)
+  df_contigs<-rbind(df_contigs,tmp)
+}
+```
+
+
+
+```{r Get shared contigs for P8}
+#install.packages("UpSetR")
+library(UpSetR)
+person<-c("P_8")
+day<-c(0,1)
+ps1 <- ps_filter(ps2, Person %in% person, Day %in% day)
+df <- data.frame(otu_table(ps1)); df[df>1]<-1
+objects<-rownames(sample_data(ps1))[!grepl('Hands', sample_data(ps1)$Object)]
+hands<-rownames(sample_data(ps1))[grepl('Hands', sample_data(ps1)$Object)]
+i<-0
+q<-list()
+for (hand in hands) {
+    for (object in objects) {
+    i<-i+1
+    #print(hand)
+    #print(object)
+    tmp <- list(query = intersects, params = list(hand, object), color = "red", active = F)
+    q[[i]] <- tmp
+    }
+  }
+
+#get contigs shared with hands for a given person/day/object
+tmp_df<-data.frame()
+for (object in objects){
+  tmp<-data.frame()
+  sub_df<-df[,c(hands,object)]
+  contigs_shared_with_hand_list<-names(which(apply(sub_df, 1, function(row) all(row !=0 ) == "TRUE")))  # find rows where there ae no zeroes
+  contigs_shared_with_hand_list_char<-paste(contigs_shared_with_hand_list,collapse=",")
+  number_contigs_shared_with_hand <- length(contigs_shared_with_hand_list)
+  obj<-unlist(strsplit(object,"_"))[4]
+  p<-c(person)
+  d<-c(day)
+  tmp<-cbind(p, d, obj , number_contigs_shared_with_hand,contigs_shared_with_hand_list_char)
+  tmp_df<-rbind(tmp_df,tmp)
+  df_contigs<-rbind(df_contigs,tmp)
+}
+
+day<-c(0,2)
+ps1 <- ps_filter(ps2, Person %in% person, Day %in% day)
+df <- data.frame(otu_table(ps1)); df[df>1]<-1
+objects<-rownames(sample_data(ps1))[!grepl('Hands', sample_data(ps1)$Object)]
+hands<-rownames(sample_data(ps1))[grepl('Hands', sample_data(ps1)$Object)]
+i<-0
+q<-list()
+for (hand in hands) {
+    for (object in objects) {
+    i<-i+1
+    #print(hand)
+    #print(object)
+    tmp <- list(query = intersects, params = list(hand, object), color = "red", active = F)
+    q[[i]] <- tmp
+    }
+  }
+
+#get contigs shared with hands for a given person/day/object
+tmp_df<-data.frame()
+for (object in objects){
+  tmp<-data.frame()
+  sub_df<-df[,c(hands,object)]
+  contigs_shared_with_hand_list<-names(which(apply(sub_df, 1, function(row) all(row !=0 ) == "TRUE")))  # find rows where there ae no zeroes
+  contigs_shared_with_hand_list_char<-paste(contigs_shared_with_hand_list,collapse=",")
+  number_contigs_shared_with_hand <- length(contigs_shared_with_hand_list)
+  obj<-unlist(strsplit(object,"_"))[4]
+  p<-c(person)
+  d<-c(day)
+  tmp<-cbind(p, d, obj , number_contigs_shared_with_hand,contigs_shared_with_hand_list_char)
+  tmp_df<-rbind(tmp_df,tmp)
+  df_contigs<-rbind(df_contigs,tmp)
+}
+```
+
+
+
+```{r Get shared contigs for P10}
+#install.packages("UpSetR")
+library(UpSetR)
+person<-c("P_10")
+day<-c(0,1)
+ps1 <- ps_filter(ps2, Person %in% person, Day %in% day)
+df <- data.frame(otu_table(ps1)); df[df>1]<-1
+objects<-rownames(sample_data(ps1))[!grepl('Hands', sample_data(ps1)$Object)]
+hands<-rownames(sample_data(ps1))[grepl('Hands', sample_data(ps1)$Object)]
+i<-0
+q<-list()
+for (hand in hands) {
+    for (object in objects) {
+    i<-i+1
+    #print(hand)
+    #print(object)
+    tmp <- list(query = intersects, params = list(hand, object), color = "red", active = F)
+    q[[i]] <- tmp
+    }
+  }
+
+#get contigs shared with hands for a given person/day/object
+tmp_df<-data.frame()
+for (object in objects){
+  tmp<-data.frame()
+  sub_df<-df[,c(hands,object)]
+  contigs_shared_with_hand_list<-names(which(apply(sub_df, 1, function(row) all(row !=0 ) == "TRUE")))  # find rows where there ae no zeroes
+  contigs_shared_with_hand_list_char<-paste(contigs_shared_with_hand_list,collapse=",")
+  number_contigs_shared_with_hand <- length(contigs_shared_with_hand_list)
+  obj<-unlist(strsplit(object,"_"))[4]
+  p<-c(person)
+  d<-c(day)
+  tmp<-cbind(p, d, obj , number_contigs_shared_with_hand,contigs_shared_with_hand_list_char)
+  tmp_df<-rbind(tmp_df,tmp)
+  df_contigs<-rbind(df_contigs,tmp)
+}
+
+day<-c(0,2)
+ps1 <- ps_filter(ps2, Person %in% person, Day %in% day)
+df <- data.frame(otu_table(ps1)); df[df>1]<-1
+objects<-rownames(sample_data(ps1))[!grepl('Hands', sample_data(ps1)$Object)]
+hands<-rownames(sample_data(ps1))[grepl('Hands', sample_data(ps1)$Object)]
+i<-0
+q<-list()
+for (hand in hands) {
+    for (object in objects) {
+    i<-i+1
+    #print(hand)
+    #print(object)
+    tmp <- list(query = intersects, params = list(hand, object), color = "red", active = F)
+    q[[i]] <- tmp
+    }
+  }
+
+#get contigs shared with hands for a given person/day/object
+tmp_df<-data.frame()
+for (object in objects){
+  tmp<-data.frame()
+  sub_df<-df[,c(hands,object)]
+  contigs_shared_with_hand_list<-names(which(apply(sub_df, 1, function(row) all(row !=0 ) == "TRUE")))  # find rows where there ae no zeroes
+  contigs_shared_with_hand_list_char<-paste(contigs_shared_with_hand_list,collapse=",")
+  number_contigs_shared_with_hand <- length(contigs_shared_with_hand_list)
+  obj<-unlist(strsplit(object,"_"))[4]
+  p<-c(person)
+  d<-c(day)
+  tmp<-cbind(p, d, obj , number_contigs_shared_with_hand,contigs_shared_with_hand_list_char)
+  tmp_df<-rbind(tmp_df,tmp)
+  df_contigs<-rbind(df_contigs,tmp)
+}
+```
+
+```{r barplot with contigs shared between object and hand regardless of wheter the contig is found in another object }
+df_contigs2<-df_contigs
+df_contigs2$number_contigs_shared_with_hand<-as.numeric(df_contigs2$number_contigs_shared_with_hand)
+df_contigs2$p_number<-gsub("_","_0",df_contigs2$p)
+df_contigs2$p_number<-gsub("_010","_10",df_contigs2$p_number)
+
+## kruskall-wallis
+df_contigs2$obj <- ordered(df_contigs2$obj,
+                         levels = c("Ceramic", "Glass", "Knife", "Phone", "Plastic"))
+# bloxplots per object
+
+ggplot(df_contigs2, aes(x=as.factor(obj), y=number_contigs_shared_with_hand)) +
+  geom_boxplot(alpha=0.2) + 
+  geom_jitter(color="black", size=.8, alpha=0.9) + 
+  xlab(NULL) + ylab("Median No. of Viral Contigs") + 
+  geom_point() + 
+  theme(panel.background = element_blank(), 
+        axis.line = element_line(colour = "black"), 
+        axis.text.x = element_text(size = 10), 
+        axis.text.y = element_text(size = 10))
+
+# descriptive stats
+library(dplyr)
+group_by(df_contigs2, obj) %>%
+  summarise(
+    count = n(),
+    mean = mean(number_contigs_shared_with_hand, na.rm = TRUE),
+    sd = sd(number_contigs_shared_with_hand, na.rm = TRUE),
+    median = median(number_contigs_shared_with_hand, na.rm = TRUE),
+    min = min(number_contigs_shared_with_hand, na.rm = TRUE),
+    max = max(number_contigs_shared_with_hand, na.rm = TRUE),
+    IQR = IQR(number_contigs_shared_with_hand, na.rm = TRUE)
+  )
+
+kruskal.test(number_contigs_shared_with_hand ~ obj, data = df_contigs2)
+
+# if there's differences, run pairwise comparissons
+pairwise.wilcox.test(df_contigs2$number_contigs_shared_with_hand, df_contigs2$obj,
+                 p.adjust.method = "BH")
+
+df_contigs2$obj <- factor(df_contigs2$p_number,
+                         levels = c("P_01", "P_02", "P_03", "P_04","P_06","P_08","P_10"))
+
+# bloxplots per person
+
+ggplot(df_contigs2, aes(x=as.factor(p_number), y=number_contigs_shared_with_hand)) +
+  geom_boxplot() + 
+  geom_jitter(color="black", size=.8, alpha=0.9) + 
+  xlab(NULL) + ylab("Median No. of Viral Contigs") + 
+  geom_point() + 
+  theme(panel.background = element_blank(), 
+        axis.line = element_line(colour = "black"), 
+        axis.text.x = element_text(size = 10), 
+        axis.text.y = element_text(size = 10))
+
+# descriptive stats
+library(dplyr)
+group_by(df_contigs2, p) %>%
+  summarise(
+    count = n(),
+    mean = mean(number_contigs_shared_with_hand, na.rm = TRUE),
+    sd = sd(number_contigs_shared_with_hand, na.rm = TRUE),
+    median = median(number_contigs_shared_with_hand, na.rm = TRUE),
+    min = min(number_contigs_shared_with_hand, na.rm = TRUE),
+    max = max(number_contigs_shared_with_hand, na.rm = TRUE),
+    IQR = IQR(number_contigs_shared_with_hand, na.rm = TRUE)
+  )
+
+kruskal.test(number_contigs_shared_with_hand ~ p, data = df_contigs)
+
+# if there's differences, run pairwise comparissons
+pairwise.wilcox.test(df_contigs2$number_contigs_shared_with_hand, df_contigs2$p_number,
+                 p.adjust.method = "BH")
+
+tax_lengths<-read.table(tax_with_lengths, header=T, row.names=1, check.names=F, sep=",")
+tax_lengths
+
+
+```
+

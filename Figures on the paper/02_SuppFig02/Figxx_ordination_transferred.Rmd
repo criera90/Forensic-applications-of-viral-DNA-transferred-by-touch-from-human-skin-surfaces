@@ -1,0 +1,126 @@
+---
+title: "Ordination analysis - Transferred objects"
+author: "Carlos Riera-Ruiz"
+date: "2023-10-02"
+output:
+  pdf_document: default
+  html_document: default
+  
+---
+
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = '.')
+getwd()
+```
+
+```{r create phyloseq object with original data of all viruses}
+library(phyloseq)
+library(microbiome)
+library(microViz)
+otu_original<-"TO_otu_table_transferred.csv"
+meta_original<-"TO_meta_table_transferred.csv"
+tax_original<-"TO_tax_table_transferred.csv"
+
+tax_with_lengths<-"TO_tax_table_with_lengths.csv"
+
+# import otu table
+#otu table
+otu<-read.table(otu_original, header=T, row.names=1, check.names=F, sep=",")
+OTU = otu_table(as.matrix(otu), taxa_are_rows = TRUE)
+OTU_phy = phyloseq(OTU)
+#meta data
+meta<-read.table(meta_original, header=T, row.names=1, check.names=F, sep=",")
+meta$Person<-gsub("_","_0",meta$Person)
+meta$Person<-gsub("_010","_10",meta$Person)
+#meta$Person<-paste0("P_",meta$Person)
+meta_phy = sample_data(data.frame(meta, row.names=sample_names(OTU_phy), stringsAsFactors=FALSE))
+meta_phy$Type<-as.factor(meta_phy$Type)
+meta_phy$Person<-as.factor(meta_phy$Person)
+meta_phy$Day<-as.factor(meta_phy$Day)
+meta_phy$Object<-as.factor(meta_phy$Object)
+meta_phy$Object2<-as.factor(meta_phy$Object2)
+meta_phy$Group1<-as.factor(meta_phy$Group1)
+#tax table
+tax<-read.table(tax_original, header=T, row.names=1, check.names=F, sep=",")
+
+# create phyloseq
+OTU = otu_table(as.matrix(otu), taxa_are_rows = TRUE)
+OTU_phy = phyloseq(OTU)
+meta_phy = sample_data(data.frame(meta, row.names=sample_names(OTU_phy), stringsAsFactors=FALSE))
+tax_phy=tax_table(as.matrix(tax))
+ps = merge_phyloseq(OTU_phy[,colSums(OTU_phy)>0], meta_phy, tax_phy)
+ps
+
+```
+
+```{r make phyloseq object with only objects}
+samples_to_keep<-c("Hands","Ceramic","Plastic","Knife","Phone","Glass")
+ps_only_objects<-subset_samples(ps, Object %in% samples_to_keep & Day %in% c(0))
+ps_only_objects<-subset_samples(ps, Object %in% samples_to_keep)
+ps_only_objects
+
+```
+
+```{r}
+
+ps_relative <- transform_sample_counts(ps_only_objects, function(x) x/sum(x) )
+sample_data(ps_relative)$Object = factor(sample_data(ps_relative)$Object, levels = samples_to_keep)
+ps_relative
+
+```
+
+```{r get otu without contigs absent in hands}
+ps_hands <- ps_filter(ps_only_objects, Object == "Hands")
+ps_hands_contigs<-rownames(otu_table(ps_hands))
+ps_hands_contigs
+ps2 <- prune_taxa(ps_hands_contigs,ps)  # phyloseq objects with contigs present in hands only and shared with objects
+ps2
+
+#otu table
+otu<-data.frame(ps2@otu_table)
+OTU = otu_table(as.matrix(otu), taxa_are_rows = TRUE)
+OTU_phy = phyloseq(OTU)
+#meta data
+meta<-data.frame(ps2@sam_data)
+meta_phy = sample_data(data.frame(meta, row.names=sample_names(OTU_phy), stringsAsFactors=FALSE))
+meta_phy$Type<-as.factor(meta_phy$Type)
+meta_phy$Person<-as.factor(meta_phy$Person)
+meta_phy$Day<-as.factor(meta_phy$Day)
+meta_phy$Object<-as.factor(meta_phy$Object)
+meta_phy$Object2<-as.factor(meta_phy$Object2)
+meta_phy$Group1<-as.factor(meta_phy$Group1)
+#tax table
+tax<-data.frame(ps2@tax_table)
+
+# create phyloseq
+OTU = otu_table(as.matrix(otu), taxa_are_rows = TRUE)
+OTU_phy = phyloseq(OTU)
+meta_phy = sample_data(data.frame(meta, row.names=sample_names(OTU_phy), stringsAsFactors=FALSE))
+tax_phy=tax_table(as.matrix(tax))
+ps2 = merge_phyloseq(OTU_phy[,colSums(OTU_phy)>0], meta_phy, tax_phy)
+ps2
+
+library(microViz)
+library(ggplot2)
+library(vegan)
+
+ps2_relative <- transform_sample_counts(ps2, function(x) x / sum(x) )
+ps2_relative %>%
+  # when no distance matrix or constraints are supplied, PCA is the default/auto ordination method
+  dist_calc(dist = "bray", na.rm = TRUE) %>%
+  ord_calc("PCoA") %>%
+  ord_plot(color = "Person", shape = "Object2", size = 3)
+#  scale_colour_brewer(palette = "Dark2")
+
+dist_mat<-vegdist(t(otu_table(ps2)), method='bray',na.rm=TRUE)
+sample_data<-data.frame(sample_data(ps2))
+#adonis2(dist_mat~as.factor(sample_data$Person) + as.factor(sample_data$Day) + as.factor(sample_data$Object), data=sample_data, permutations=999)
+adonis2(dist_mat~as.factor(sample_data$Person) + as.factor(sample_data$Object), data=sample_data, permutations=999, by = "margin")
+
+
+```
+
+
+
+
+
