@@ -1,0 +1,34 @@
+contigID,subjectACC,taxID,species,class,phylum,kingdom,clade,superkingdom
+TO_sample_contig_106697,gi|2054633443|tpg|BK051670.1|,2832643,Caudoviricetes sp.,Caudoviricetes,Uroviricota,Heunggongvirae,Duplodnaviria,Viruses
+TO_sample_contig_121382,gi|2058005224|tpg|BK047214.1|,2832643,Caudoviricetes sp.,Caudoviricetes,Uroviricota,Heunggongvirae,Duplodnaviria,Viruses
+TO_sample_contig_174566,gi|2179942145|gb|OL774866.1|,2911161,Streptococcus phage MissG2,unknown_class,unknown_phylum,unknown_kingdom,unknown_clade,Viruses
+TO_sample_contig_190997,gi|2056960896|tpg|BK022913.1|,38018,Bacteriophage sp.,unknown_class,unknown_phylum,unknown_kingdom,unknown_clade,Viruses
+TO_sample_contig_239065,gi|2057977772|tpg|BK046692.1|,2832643,Caudoviricetes sp.,Caudoviricetes,Uroviricota,Heunggongvirae,Duplodnaviria,Viruses
+TO_sample_contig_284092,gi|2058058158|tpg|BK042689.1|,2832643,Caudoviricetes sp.,Caudoviricetes,Uroviricota,Heunggongvirae,Duplodnaviria,Viruses
+TO_sample_contig_30755,gi|1378519727|emb|LT985580.1|,38018,Bacteriophage sp.,unknown_class,unknown_phylum,unknown_kingdom,unknown_clade,Viruses
+TO_sample_contig_326413,gi|1378519727|emb|LT985580.1|,38018,Bacteriophage sp.,unknown_class,unknown_phylum,unknown_kingdom,unknown_clade,Viruses
+TO_sample_contig_326710,gi|2179942145|gb|OL774866.1|,2911161,Streptococcus phage MissG2,unknown_class,unknown_phylum,unknown_kingdom,unknown_clade,Viruses
+TO_sample_contig_343228,gi|2054633443|tpg|BK051670.1|,2832643,Caudoviricetes sp.,Caudoviricetes,Uroviricota,Heunggongvirae,Duplodnaviria,Viruses
+TO_sample_contig_368961,gi|2438090861|ref|NC_070901.1|,1913081,Streptococcus phage CHPC577,Caudoviricetes,Uroviricota,Heunggongvirae,Duplodnaviria,Viruses
+TO_sample_contig_455691,gi|1378519727|emb|LT985580.1|,38018,Bacteriophage sp.,unknown_class,unknown_phylum,unknown_kingdom,unknown_clade,Viruses
+TO_sample_contig_476161,gi|1775902739|gb|MN270269.1|,2664399,Streptococcus phage phi-SsuHCJ3_rum,Caudoviricetes,Uroviricota,Heunggongvirae,Duplodnaviria,Viruses
+TO_sample_contig_497384,gi|1930263568|gb|MT880872.1|,2782522,Staphylococcus phage PhiSepi-HH3,Caudoviricetes,Uroviricota,Heunggongvirae,Duplodnaviria,Viruses
+TO_sample_contig_500615,gi|2058030701|tpg|BK042130.1|,2832643,Caudoviricetes sp.,Caudoviricetes,Uroviricota,Heunggongvirae,Duplodnaviria,Viruses
+TO_sample_contig_516537,gi|2054519050|tpg|BK047424.1|,2832643,Caudoviricetes sp.,Caudoviricetes,Uroviricota,Heunggongvirae,Duplodnaviria,Viruses
+TO_sample_contig_539676,gi|2054641099|tpg|BK051818.1|,2832643,Caudoviricetes sp.,Caudoviricetes,Uroviricota,Heunggongvirae,Duplodnaviria,Viruses
+TO_sample_contig_540853,gi|2154887434|gb|MZ675741.1|,2897426,Acinetobacter phage Ab1656-2,Caudoviricetes,Uroviricota,Heunggongvirae,Duplodnaviria,Viruses
+TO_sample_contig_570604,gi|2046358903|ref|NC_055017.1|,2675263,Ceduovirus PCB1,Caudoviricetes,Uroviricota,Heunggongvirae,Duplodnaviria,Viruses
+TO_sample_contig_597538,gi|2054633443|tpg|BK051670.1|,2832643,Caudoviricetes sp.,Caudoviricetes,Uroviricota,Heunggongvirae,Duplodnaviria,Viruses
+TO_sample_contig_600949,gi|2057010389|tpg|BK048668.1|,2832643,Caudoviricetes sp.,Caudoviricetes,Uroviricota,Heunggongvirae,Duplodnaviria,Viruses
+TO_sample_contig_612438,gi|2056919416|tpg|BK054280.1|,2832643,Caudoviricetes sp.,Caudoviricetes,Uroviricota,Heunggongvirae,Duplodnaviria,Viruses
+TO_sample_contig_636265,gi|2179942145|gb|OL774866.1|,2911161,Streptococcus phage MissG2,unknown_class,unknown_phylum,unknown_kingdom,unknown_clade,Viruses
+TO_sample_contig_640205,gi|2054633443|tpg|BK051670.1|,2832643,Caudoviricetes sp.,Caudoviricetes,Uroviricota,Heunggongvirae,Duplodnaviria,Viruses
+TO_sample_contig_646787,gi|2437986996|ref|NC_070720.1|,2419655,Streptococcus phage SW6,Caudoviricetes,Uroviricota,Heunggongvirae,Duplodnaviria,Viruses
+TO_sample_contig_727551,gi|2057837444|tpg|BK055655.1|,2832643,Caudoviricetes sp.,Caudoviricetes,Uroviricota,Heunggongvirae,Duplodnaviria,Viruses
+TO_sample_contig_751780,gi|2052975209|tpg|BK030503.1|,2832643,Caudoviricetes sp.,Caudoviricetes,Uroviricota,Heunggongvirae,Duplodnaviria,Viruses
+TO_sample_contig_797740,gi|2054536647|tpg|BK047765.1|,2832643,Caudoviricetes sp.,Caudoviricetes,Uroviricota,Heunggongvirae,Duplodnaviria,Viruses
+TO_sample_contig_816453,gi|2054633443|tpg|BK051670.1|,2832643,Caudoviricetes sp.,Caudoviricetes,Uroviricota,Heunggongvirae,Duplodnaviria,Viruses
+TO_sample_contig_838875,gi|2054409294|tpg|BK035491.1|,2832643,Caudoviricetes sp.,Caudoviricetes,Uroviricota,Heunggongvirae,Duplodnaviria,Viruses
+TO_sample_contig_902689,gi|1930263568|gb|MT880872.1|,2782522,Staphylococcus phage PhiSepi-HH3,Caudoviricetes,Uroviricota,Heunggongvirae,Duplodnaviria,Viruses
+TO_sample_contig_905385,gi|2057837444|tpg|BK055655.1|,2832643,Caudoviricetes sp.,Caudoviricetes,Uroviricota,Heunggongvirae,Duplodnaviria,Viruses
+TO_sample_contig_907912,gi|2054633443|tpg|BK051670.1|,2832643,Caudoviricetes sp.,Caudoviricetes,Uroviricota,Heunggongvirae,Duplodnaviria,Viruses

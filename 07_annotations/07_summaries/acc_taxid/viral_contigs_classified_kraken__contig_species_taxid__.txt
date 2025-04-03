@@ -1,0 +1,25 @@
+TO_sample_contig_21278	Ceduovirus 	 186532
+TO_sample_contig_79394	Human polyomavirus 6 	 746830
+TO_sample_contig_144954	Pahexavirus 	 1982251
+TO_sample_contig_172159	Ceduovirus 	 186532
+TO_sample_contig_186376	Sextaecvirus 	 1922243
+TO_sample_contig_228475	Human polyomavirus 6 	 746830
+TO_sample_contig_228597	Skunavirus 	 1623305
+TO_sample_contig_244429	Skunavirus 	 1623305
+TO_sample_contig_310321	Sextaecvirus 	 1922243
+TO_sample_contig_324352	Moineauvirus 	 1623304
+TO_sample_contig_351245	Moineauvirus 	 1623304
+TO_sample_contig_357132	Sextaecvirus 	 1922243
+TO_sample_contig_446157	Human betaherpesvirus 7 	 10372
+TO_sample_contig_456233	Moineauvirus 	 1623304
+TO_sample_contig_463524	Pahexavirus 	 1982251
+TO_sample_contig_463820	Human betaherpesvirus 7 	 10372
+TO_sample_contig_611504	Skunavirus 	 1623305
+TO_sample_contig_628778	Skunavirus 	 1623305
+TO_sample_contig_630943	Ceduovirus 	 186532
+TO_sample_contig_637341	Moineauvirus 	 1623304
+TO_sample_contig_699126	Human betaherpesvirus 7 	 10372
+TO_sample_contig_840010	Human betaherpesvirus 7 	 10372
+TO_sample_contig_866515	Sextaecvirus 	 1922243
+TO_sample_contig_869370	Chimeric virus 14 	 1608440
+TO_sample_contig_934781	Chimeric virus 14 	 1608440
